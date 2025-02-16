@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beautiful Snake Game</title>
+    <style>body {
+        font-family: "Arial", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      
+      .game-container {
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 2rem;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+      
+      h1 {
+        color: #4a4a4a;
+        margin-bottom: 20px;
+        font-size: 2.5rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      
+      .score-container {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 15px;
+      }
+      
+      #gameCanvas {
+        border: 4px solid #34495e;
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      }
+      
+      .controls {
+        margin-top: 20px;
+        color: #7f8c8d;
+      }
+      
+      .arrow-keys {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 10px;
+      }
+      
+      .arrow-row {
+        display: flex;
+      }
+      
+      .arrow {
+        width: 40px;
+        height: 40px;
+        background-color: #3498db;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 5px;
+        border-radius: 5px;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      
+      .arrow:hover {
+        background-color: #2980b9;
+      }
+      
+      #startButton {
+        margin-top: 20px;
+        padding: 10px 20px;
+        font-size: 1.2rem;
+        background-color: #2ecc71;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      
+      #startButton:hover {
+        background-color: #27ae60;
+      }
+      
+      </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Beautiful Snake Game</h1>
+        <div class="score-container">
+            <p>Score: <span id="score">0</span></p>
+        </div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div class="controls">
+            <p>Use arrow keys to control the snake:</p>
+            <div class="arrow-keys">
+                <div class="arrow up">↑</div>
+                <div class="arrow-row">
+                    <div class="arrow left">←</div>
+                    <div class="arrow down">↓</div>
+                    <div class="arrow right">→</div>
+                </div>
+            </div>
+        </div>
+        <button id="startButton">Start Game</button>
+    </div>
+    <script >class Snake {
+        constructor() {
+          this.body = [{ x: 10, y: 10 }]
+          this.direction = "right"
+          this.color = "#3498db"
+        }
+      
+        move() {
+          const head = { ...this.body[0] }
+          switch (this.direction) {
+            case "up":
+              head.y--
+              break
+            case "down":
+              head.y++
+              break
+            case "left":
+              head.x--
+              break
+            case "right":
+              head.x++
+              break
+          }
+          this.body.unshift(head)
+        }
+      
+        grow() {
+          // The tail is automatically added by not removing the last segment
+        }
+      
+        checkCollision(width, height) {
+          const head = this.body[0]
+          if (head.x < 0 || head.x >= width / 10 || head.y < 0 || head.y >= height / 10) {
+            return true
+          }
+          for (let i = 1; i < this.body.length; i++) {
+            if (head.x === this.body[i].x && head.y === this.body[i].y) {
+              return true
+            }
+          }
+          return false
+        }
+      
+        draw(ctx) {
+          ctx.fillStyle = this.color
+          this.body.forEach((segment) => {
+            ctx.fillRect(segment.x * 10, segment.y * 10, 10, 10)
+          })
+        }
+      }
+      
+      class Food {
+        constructor(width, height) {
+          this.position = this.getRandomPosition(width, height)
+          this.color = "#e74c3c"
+        }
+      
+        getRandomPosition(width, height) {
+          return {
+            x: Math.floor(Math.random() * (width / 10)),
+            y: Math.floor(Math.random() * (height / 10)),
+          }
+        }
+      
+        draw(ctx) {
+          ctx.fillStyle = this.color
+          ctx.beginPath()
+          ctx.arc(this.position.x * 10 + 5, this.position.y * 10 + 5, 5, 0, 2 * Math.PI)
+          ctx.fill()
+        }
+      }
+      
+      class Game {
+        constructor() {
+          this.canvas = document.getElementById("gameCanvas")
+          this.ctx = this.canvas.getContext("2d")
+          this.snake = new Snake()
+          this.food = new Food(this.canvas.width, this.canvas.height)
+          this.score = 0
+          this.gameLoop = null
+          this.speed = 100
+          this.isGameOver = false
+      
+          document.addEventListener("keydown", this.handleKeyPress.bind(this))
+          document.getElementById("startButton").addEventListener("click", this.start.bind(this))
+        }
+      
+        handleKeyPress(event) {
+          if (this.isGameOver) return
+      
+          switch (event.key) {
+            case "ArrowUp":
+              if (this.snake.direction !== "down") this.snake.direction = "up"
+              break
+            case "ArrowDown":
+              if (this.snake.direction !== "up") this.snake.direction = "down"
+              break
+            case "ArrowLeft":
+              if (this.snake.direction !== "right") this.snake.direction = "left"
+              break
+            case "ArrowRight":
+              if (this.snake.direction !== "left") this.snake.direction = "right"
+              break
+          }
+        }
+      
+        update() {
+          this.snake.move()
+      
+          if (this.snake.checkCollision(this.canvas.width, this.canvas.height)) {
+            this.gameOver()
+            return
+          }
+      
+          if (this.snake.body[0].x === this.food.position.x && this.snake.body[0].y === this.food.position.y) {
+            this.snake.grow()
+            this.food = new Food(this.canvas.width, this.canvas.height)
+            this.score++
+            document.getElementById("score").textContent = this.score
+            this.speed = Math.max(50, this.speed - 2)
+            clearInterval(this.gameLoop)
+            this.gameLoop = setInterval(() => this.update(), this.speed)
+          } else {
+            this.snake.body.pop()
+          }
+      
+          this.draw()
+        }
+      
+        draw() {
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+          this.snake.draw(this.ctx)
+          this.food.draw(this.ctx)
+        }
+      
+        start() {
+          if (this.isGameOver) {
+            this.reset()
+          }
+          this.gameLoop = setInterval(() => this.update(), this.speed)
+          document.getElementById("startButton").style.display = "none"
+        }
+      
+        reset() {
+          this.snake = new Snake()
+          this.food = new Food(this.canvas.width, this.canvas.height)
+          this.score = 0
+          this.speed = 100
+          this.isGameOver = false
+          document.getElementById("score").textContent = "0"
+        }
+      
+        gameOver() {
+          clearInterval(this.gameLoop)
+          this.isGameOver = true
+          this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)"
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
+          this.ctx.fillStyle = "#ffffff"
+          this.ctx.font = "30px Arial"
+          this.ctx.fillText("Game Over!", this.canvas.width / 2 - 70, this.canvas.height / 2)
+          this.ctx.font = "20px Arial"
+          this.ctx.fillText(`Score: ${this.score}`, this.canvas.width / 2 - 40, this.canvas.height / 2 + 40)
+          document.getElementById("startButton").style.display = "block"
+          document.getElementById("startButton").textContent = "Play Again"
+        }
+      }
+      
+      const game = new Game()
+      
+      </script>
+</body>
+</html>
+
